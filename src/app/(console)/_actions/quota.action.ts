@@ -50,6 +50,7 @@ export async function getQuotaItem() {
   const { data, error } = await supabaseServer
     .from("credit-quota")
     .select("*")
+    .or("mint.not.ilike.%::credit_token::CREDIT_TOKEN,mint.is.null")
     .order("org_name", { ascending: true });
 
   if (error) {

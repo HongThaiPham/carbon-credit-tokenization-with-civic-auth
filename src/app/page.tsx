@@ -55,12 +55,13 @@ export default function Home() {
                   carbon credits on the Solana blockchain.
                 </p>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Link href={"/trader/swap"}>
+                  <Link href={"/login"}>
                     <Button className="bg-green-600 hover:bg-green-700">
                       Get Started
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
+
                   <Button variant="outline">Learn More</Button>
                 </div>
               </div>
@@ -69,7 +70,7 @@ export default function Home() {
                   <img
                     alt="Carbon credit visualization"
                     className="object-cover"
-                    src="/placeholder.svg?height=400&width=600"
+                    src="/CarbonStreaming.jpeg"
                   />
                 </div>
               </div>
