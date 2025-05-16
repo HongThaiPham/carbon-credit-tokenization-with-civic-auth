@@ -1,3 +1,3 @@
 [submodule "solana-grant-rwa-tokenization"]
-	path = rwa-tokenization-program
+	path = solana-grant-rwa-tokenization
 	url = git@github.com:HongThaiPham/solana-grant-rwa-tokenization.git
