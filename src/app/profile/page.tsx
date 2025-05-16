@@ -1,13 +1,13 @@
 "use client";
 import { useUser } from "@civic/auth-web3/react";
-import { embeddedWallet, userHasWallet } from "@civic/auth-web3";
+import { userHasWallet } from "@civic/auth-web3";
 
 import React from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 
 const ProfilePage = () => {
   const userContext = useUser();
-  const { publicKey, connect, connected } = useWallet();
+  const { connect, connected } = useWallet();
 
   const createWallet = () => {
     if (userContext.user && !userHasWallet(userContext)) {
