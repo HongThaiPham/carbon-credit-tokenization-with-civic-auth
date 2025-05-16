@@ -7,6 +7,8 @@ import { Button } from "./ui/button";
 import { toast } from "react-toastify";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Loader2Icon } from "lucide-react";
+import { ExistingWeb3UserContext, userHasWallet } from "@civic/auth-web3";
+import { stringCompact } from "@/lib/utils";
 
 export const WalletMultiButtonDynamic = dynamic(
   async () =>
@@ -15,30 +17,42 @@ export const WalletMultiButtonDynamic = dynamic(
 );
 
 const ConnectWalletButton = ({}) => {
-  const { user, signIn, signOut, isLoading } = useUser();
-  const { publicKey } = useWallet();
+  const { connect } = useWallet();
+
+  const userContext = useUser();
+
+  console.log(
+    "ConnectWalletButton",
+    userContext.user,
+    (userContext as ExistingWeb3UserContext)?.solana?.address
+  );
 
   const doSignIn = useCallback(async () => {
     console.log("Starting sign-in process");
-    await toast.promise(signIn, {
+    await toast.promise(userContext.signIn().then(connect), {
       pending: "Signing in...",
       success: "Sign-in completed successfully",
       error: "Sign-in failed",
     });
-  }, [signIn]);
+  }, [connect, userContext]);
 
-  const doSignOut = useCallback(() => {
+  const doSignOut = useCallback(async () => {
     console.log("Starting sign-out process");
-    signOut()
-      .then(() => {
-        console.log("Sign-out completed successfully");
-      })
-      .catch((error) => {
-        console.error("Sign-out failed:", error);
-      });
-  }, [signOut]);
+    await toast.promise(userContext.signOut, {
+      pending: "Signing out...",
+      success: "Sign-out completed successfully",
+      error: "Sign-out failed",
+    });
+  }, [userContext.signOut]);
 
-  if (!isLoading) {
+  const createWallet = () => {
+    if (userContext.user && !userHasWallet(userContext)) {
+      // Once the wallet is created, we can connect it straight away
+      return userContext.createWallet().then(connect);
+    }
+  };
+
+  if (userContext.isLoading) {
     return (
       <Button disabled>
         <span className="animate-pulse">Loading...</span>
@@ -46,19 +60,30 @@ const ConnectWalletButton = ({}) => {
       </Button>
     );
   }
-
-  if (!user)
+  if (!userContext.user)
     return (
       <>
         <Button onClick={doSignIn}>SignIn</Button>
       </>
     );
 
-  return (
-    <>
-      <Button onClick={doSignOut}>{publicKey?.toBase58()}</Button>
-    </>
-  );
+  if (userContext.user) {
+    return (
+      <div>
+        {!userHasWallet(userContext) ? (
+          <>
+            <Button onClick={createWallet}>Create Wallet</Button>
+          </>
+        ) : (
+          <>
+            <Button onClick={doSignOut}>
+              {stringCompact(userContext.solana.address, 6)}
+            </Button>
+          </>
+        )}
+      </div>
+    );
+  }
 };
 
 export default ConnectWalletButton;

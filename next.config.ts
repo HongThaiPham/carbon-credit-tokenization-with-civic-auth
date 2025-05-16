@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
 
 const withCivicAuth = createCivicAuthPlugin({
   clientId: process.env.NEXT_PUBLIC_CIVIC_CLIENT_ID as string,
+  oauthServer: process.env.AUTH_SERVER || "https://auth.civic.com/oauth",
   ...(process.env.WEBPACK_ENABLE_SOLANA_WALLET_ADAPTER === "true"
     ? { enableSolanaWalletAdapter: true }
     : {}),

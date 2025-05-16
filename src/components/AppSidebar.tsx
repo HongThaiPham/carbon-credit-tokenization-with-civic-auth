@@ -9,6 +9,7 @@ import {
   LayersIcon,
   LeafyGreenIcon,
   LifeBuoy,
+  Loader2,
   PlusCircleIcon,
   RefreshCwIcon,
   Send,
@@ -28,6 +29,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { NavUser } from "./NavUser";
+import { useUser } from "@civic/auth-web3/react";
 
 const data = {
   user: {
@@ -108,6 +110,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user, isLoading } = useUser();
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
@@ -135,7 +138,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        {isLoading ? (
+          <div className="flex h-10 w-full items-center justify-center">
+            <Loader2 className="animate-spin size-6" />
+          </div>
+        ) : (
+          <NavUser
+            user={{
+              name: user?.name || "",
+              avatar: user?.picture || "",
+              email: user?.email || "",
+            }}
+          />
+        )}
       </SidebarFooter>
     </Sidebar>
   );

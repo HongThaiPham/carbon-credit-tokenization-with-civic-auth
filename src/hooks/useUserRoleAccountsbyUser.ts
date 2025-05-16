@@ -3,14 +3,21 @@ import { NFTRole } from "@/lib/constants";
 import { useQuery } from "@tanstack/react-query";
 import { useRwaProgram } from "./useProgram";
 import { web3 } from "@coral-xyz/anchor";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useUser } from "@civic/auth-web3/react";
+import { userHasWallet } from "@civic/auth-web3";
 
 const useUserRoleAccountsbyUser = (role: NFTRole) => {
-  const { publicKey } = useWallet();
+  const userContext = useUser();
+
+  console.log("useUserRoleAccountsbyUser", role);
   const program = useRwaProgram();
   return useQuery({
-    queryKey: ["userRoleAccounts", publicKey, role],
+    queryKey: ["userRoleAccounts", role],
     queryFn: async () => {
+      if (!userHasWallet(userContext)) {
+        return;
+      }
+      const publicKey = userContext.solana.address;
       if (!publicKey) return [];
       if (role === NFTRole.MINTER) {
         const accounts = await program.account.minterController.all([
@@ -46,7 +53,7 @@ const useUserRoleAccountsbyUser = (role: NFTRole) => {
         }));
       }
     },
-    enabled: !!publicKey,
+    enabled: userHasWallet(userContext),
   });
 };
 

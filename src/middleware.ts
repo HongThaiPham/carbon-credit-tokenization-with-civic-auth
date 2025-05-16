@@ -1,7 +1,7 @@
 import { authMiddleware } from "@civic/auth-web3/nextjs/middleware";
 
 export default authMiddleware({
-  exclude: ["/", "/login"],
+  exclude: ["/", "/login", "/web2/*"],
   loginUrl: "/login",
 });
 

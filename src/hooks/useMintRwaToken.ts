@@ -6,7 +6,7 @@ import {
   getAddressEncoder,
   getProgramDerivedAddress,
 } from "@solana/kit";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { toast } from "react-toastify";
 import {
   getMint,
@@ -16,20 +16,26 @@ import {
 import { BN, web3 } from "@coral-xyz/anchor";
 import { convertMetadataToObject } from "@/lib/utils";
 import { insertHistory } from "@/app/(console)/_actions/history.action";
+import { useUser } from "@civic/auth-web3/react";
+import { userHasWallet } from "@civic/auth-web3";
 type MintRwaTokenParams = { amount: number };
 const useMintRwaToken = (mint: string) => {
   const program = useRwaProgram();
-  const { publicKey } = useWallet();
+  const userContext = useUser();
   const addressEncoder = getAddressEncoder();
   const { connection } = useConnection();
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["mintRwaToken", mint],
     mutationFn: async (payload: MintRwaTokenParams) => {
-      if (!publicKey) {
+      if (!userHasWallet(userContext)) {
         toast.error("Wallet not connected");
         return;
       }
+      console.log("Minting RWA token", userContext.solana.wallet);
+      const { sendTransaction } = userContext.solana.wallet;
+
+      const publicKey = userContext.solana.wallet.publicKey!;
       const [nftMinterMintAddress] = await getProgramDerivedAddress({
         programAddress: fromLegacyPublicKey(program.programId),
         seeds: [
@@ -63,7 +69,7 @@ const useMintRwaToken = (mint: string) => {
         new Promise(async (resolve, reject) => {
           try {
             console.info("Minting RWA token...");
-            const result = await program.methods
+            const transaction = await program.methods
               .mintRwaToken(new BN(payload.amount))
               .accounts({
                 minter: fromLegacyPublicKey(publicKey),
@@ -71,9 +77,18 @@ const useMintRwaToken = (mint: string) => {
                 receiver: new web3.PublicKey(publicKey),
                 rwaMint: mint,
               })
-              .rpc();
+              .transaction();
+
+            // transaction.feePayer = publicKey;
+            // transaction.recentBlockhash = (
+            //   await connection.getLatestBlockhash("confirmed")
+            // ).blockhash;
+
+            const result = await sendTransaction(transaction, connection);
+            console.log("Signature", result);
+
             await insertHistory(
-              result,
+              "result",
               mint,
               publicKey?.toString(),
               BigInt(payload.amount * 10 ** mintInfo.decimals).toString(),
