@@ -21,8 +21,8 @@ const MintMoreRwaTokenModal: React.FC<Props> = ({ mint }) => {
   const [amount, setAmount] = useState(0);
   const { mutateAsync, isPending } = useMintRwaToken(mint);
   const handler = async () => {
-    await mutateAsync({ amount });
     setOpen(false);
+    await mutateAsync({ amount });
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>

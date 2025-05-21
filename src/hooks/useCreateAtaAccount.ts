@@ -1,23 +1,28 @@
+import { userHasWallet } from "@civic/auth-web3";
+import { useUser } from "@civic/auth-web3/react";
 import { web3 } from "@coral-xyz/anchor";
 import {
   createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddressSync,
   TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 
 const useCreateAtaAccount = (mint: string, to: string) => {
-  const { publicKey, sendTransaction } = useWallet();
+  const userContext = useUser();
   const { connection } = useConnection();
   return useMutation({
-    mutationKey: ["create-ata-account", publicKey, mint, to],
+    mutationKey: ["create-ata-account", mint, to],
     mutationFn: async () => {
-      if (!publicKey) {
+      if (!userHasWallet(userContext)) {
         toast.error("Wallet not connected");
         return;
       }
+      console.log("Minting RWA token", userContext.solana.wallet);
+
+      const publicKey = userContext.solana.wallet.publicKey!;
       const mintPublicKey = new web3.PublicKey(mint);
       const toPublicKey = new web3.PublicKey(to);
       const ata = getAssociatedTokenAddressSync(
@@ -44,7 +49,10 @@ const useCreateAtaAccount = (mint: string, to: string) => {
             transaction.recentBlockhash = recentBlockhash.blockhash;
             transaction.feePayer = publicKey;
 
-            const signature = await sendTransaction(transaction, connection);
+            const signature = await userContext.solana.wallet.sendTransaction(
+              transaction,
+              connection
+            );
 
             const tx = await connection.confirmTransaction({
               signature,

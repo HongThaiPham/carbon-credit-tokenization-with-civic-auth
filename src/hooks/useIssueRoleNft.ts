@@ -8,28 +8,35 @@ import { useMutation } from "@tanstack/react-query";
 import { address } from "@solana/kit";
 import { useRwaProgram } from "./useProgram";
 import { toast } from "react-toastify";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { fromLegacyPublicKey } from "@solana/compat";
+import { useUser } from "@civic/auth-web3/react";
+import { userHasWallet } from "@civic/auth-web3";
 type UseIssueRoleNftParams = {
   mint: string;
   role: NFTRole;
 };
 const useIssueRoleNft = (to: string) => {
   const program = useRwaProgram();
-  const { publicKey } = useWallet();
+  const userContext = useUser();
+  const { connection } = useConnection();
+
   return useMutation({
     mutationKey: ["issueRoleNft", to],
     mutationFn: async ({ role, mint }: UseIssueRoleNftParams) => {
-      if (!publicKey) {
+      if (!userHasWallet(userContext)) {
         toast.error("Wallet not connected");
         return;
       }
+      console.log("Minting RWA token", userContext.solana.wallet);
+
+      const publicKey = userContext.solana.wallet.publicKey!;
       return toast.promise(
         new Promise(async (resolve, reject) => {
           try {
             if (role === NFTRole.MINTER) {
               console.info("Issuing MINTER role NFT...");
-              const result = await program.methods
+              const transaction = await program.methods
                 .issueMinterCert(
                   MINTER_ROLE_NFT_METADATA.name,
                   MINTER_ROLE_NFT_METADATA.symbol,
@@ -39,12 +46,22 @@ const useIssueRoleNft = (to: string) => {
                   receiver: address(to),
                   permissionedMint: address(mint),
                 })
-                .rpc();
+                .transaction();
+
+              transaction.feePayer = publicKey;
+              transaction.recentBlockhash = (
+                await connection.getLatestBlockhash("confirmed")
+              ).blockhash;
+
+              const result = await userContext.solana.wallet.sendTransaction(
+                transaction,
+                connection
+              );
 
               resolve(result);
             } else {
               console.info("Issuing CONSUMER role NFT...");
-              const result = await program.methods
+              const transaction = await program.methods
                 .issueConsumerCert(
                   CONSUMER_ROLE_NFT_METADATA.name,
                   CONSUMER_ROLE_NFT_METADATA.symbol,
@@ -56,8 +73,17 @@ const useIssueRoleNft = (to: string) => {
                   payer: fromLegacyPublicKey(publicKey),
                   rwaMint: address(mint),
                 })
-                .rpc();
+                .transaction();
 
+              transaction.feePayer = publicKey;
+              transaction.recentBlockhash = (
+                await connection.getLatestBlockhash("confirmed")
+              ).blockhash;
+
+              const result = await userContext.solana.wallet.sendTransaction(
+                transaction,
+                connection
+              );
               resolve(result);
             }
           } catch (error) {

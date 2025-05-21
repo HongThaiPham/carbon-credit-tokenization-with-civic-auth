@@ -1,24 +1,29 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRwaProgram } from "./useProgram";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { toast } from "react-toastify";
 import { BN, web3 } from "@coral-xyz/anchor";
 import { getMint, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { insertHistory } from "@/app/(console)/_actions/history.action";
+import { useUser } from "@civic/auth-web3/react";
+import { userHasWallet } from "@civic/auth-web3";
 
 const useConsumeRwaToken = () => {
   const program = useRwaProgram();
+  const userContext = useUser();
   const { connection } = useConnection();
-  const { publicKey } = useWallet();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: ["consumeRwaToken"],
     mutationFn: async ({ amount, mint }: { amount: number; mint: string }) => {
-      if (!publicKey) {
+      if (!userHasWallet(userContext)) {
         toast.error("Wallet not connected");
         return;
       }
+      console.log("Consuming RWA token", userContext.solana.wallet);
+
+      const publicKey = userContext.solana.wallet.publicKey!;
 
       const mintInfo = await getMint(
         connection,
@@ -32,7 +37,7 @@ const useConsumeRwaToken = () => {
         new Promise(async (resolve, reject) => {
           try {
             console.info("Consuming RWA token...");
-            const result = await program.methods
+            const transaction = await program.methods
               .retireToken(new BN(amount * 10 ** mintInfo.decimals))
               .accounts({
                 payer: publicKey,
@@ -41,7 +46,17 @@ const useConsumeRwaToken = () => {
                 nftMint: nftMint.publicKey,
               })
               .signers([nftMint])
-              .rpc();
+              .transaction();
+
+            transaction.feePayer = publicKey;
+            transaction.recentBlockhash = (
+              await connection.getLatestBlockhash("confirmed")
+            ).blockhash;
+
+            const result = await userContext.solana.wallet.sendTransaction(
+              transaction,
+              connection
+            );
             await insertHistory(
               result,
               mint,

@@ -33,7 +33,6 @@ const useMintRwaToken = (mint: string) => {
         return;
       }
       console.log("Minting RWA token", userContext.solana.wallet);
-      const { sendTransaction } = userContext.solana.wallet;
 
       const publicKey = userContext.solana.wallet.publicKey!;
       const [nftMinterMintAddress] = await getProgramDerivedAddress({
@@ -69,6 +68,7 @@ const useMintRwaToken = (mint: string) => {
         new Promise(async (resolve, reject) => {
           try {
             console.info("Minting RWA token...");
+
             const transaction = await program.methods
               .mintRwaToken(new BN(payload.amount))
               .accounts({
@@ -79,12 +79,15 @@ const useMintRwaToken = (mint: string) => {
               })
               .transaction();
 
-            // transaction.feePayer = publicKey;
-            // transaction.recentBlockhash = (
-            //   await connection.getLatestBlockhash("confirmed")
-            // ).blockhash;
+            transaction.feePayer = publicKey;
+            transaction.recentBlockhash = (
+              await connection.getLatestBlockhash("confirmed")
+            ).blockhash;
 
-            const result = await sendTransaction(transaction, connection);
+            const result = await userContext.solana.wallet.sendTransaction(
+              transaction,
+              connection
+            );
             console.log("Signature", result);
 
             await insertHistory(

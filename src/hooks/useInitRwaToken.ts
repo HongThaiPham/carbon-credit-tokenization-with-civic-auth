@@ -1,11 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRwaProgram, useTransferHookProgram } from "./useProgram";
 import { toast } from "react-toastify";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { TOKEN_METADATA } from "@/lib/constants";
 import { BN } from "@coral-xyz/anchor";
 import { getProgramDerivedAddress } from "@solana/kit";
 import { fromLegacyPublicKey } from "@solana/compat";
+import { userHasWallet } from "@civic/auth-web3";
+import { useUser } from "@civic/auth-web3/react";
 type InitRwaTokenParams = {
   name: string;
   symbol: string;
@@ -19,16 +21,20 @@ type InitRwaTokenParams = {
 const useInitRwaToken = () => {
   const program = useRwaProgram();
   const hookProgram = useTransferHookProgram();
-  const { publicKey } = useWallet();
-  // const addressEncoder = getAddressEncoder();
+  const userContext = useUser();
+
+  const { connection } = useConnection();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationKey: ["initRwaToken", publicKey],
+    mutationKey: ["initRwaToken"],
     mutationFn: async (payload: InitRwaTokenParams) => {
-      if (!publicKey) {
+      if (!userHasWallet(userContext)) {
         toast.error("Wallet not connected");
         return;
       }
+      console.log("Minting RWA token", userContext.solana.wallet);
+
+      const publicKey = userContext.solana.wallet.publicKey!;
       return toast.promise(
         new Promise(async (resolve, reject) => {
           try {
@@ -47,7 +53,7 @@ const useInitRwaToken = () => {
               seeds: [Buffer.from("cct"), Buffer.from(payload.symbol)],
             });
 
-            const method = await program.methods
+            const transaction = await program.methods
               .initRwaToken(
                 payload.name,
                 payload.symbol,
@@ -60,10 +66,11 @@ const useInitRwaToken = () => {
               )
               .accountsPartial({
                 transferHookProgram: hookProgram.programId,
-              });
+              })
+              .transaction();
 
             if (payload.isClose) {
-              method.postInstructions([
+              transaction.add(
                 await hookProgram.methods
                   .initializeExtraAccountMetaList()
                   .accounts({
@@ -71,11 +78,19 @@ const useInitRwaToken = () => {
                     mint: carbonCreditsMintAddress,
                     rwaProgram: program.programId,
                   })
-                  .instruction(),
-              ]);
+                  .instruction()
+              );
             }
 
-            const result = await method.rpc();
+            transaction.feePayer = publicKey;
+            transaction.recentBlockhash = (
+              await connection.getLatestBlockhash("confirmed")
+            ).blockhash;
+
+            const result = await userContext.solana.wallet.sendTransaction(
+              transaction,
+              connection
+            );
             await queryClient.invalidateQueries({
               queryKey: ["rwaTokenCreated"],
             });

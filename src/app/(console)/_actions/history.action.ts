@@ -6,6 +6,7 @@ export async function getHistory(type: "MINT" | "RETIRE") {
     .from("mint-transactions")
     .select("*")
     .filter("type", "eq", type)
+    .filter("mint", "not.ilike", "%credit_token::CREDIT_TOKEN%")
     .order("created_at", { ascending: false });
 
   if (error) {

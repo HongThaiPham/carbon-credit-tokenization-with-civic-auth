@@ -181,7 +181,7 @@ export default function Home() {
                   <img
                     alt="Platform workflow diagram"
                     className="object-cover"
-                    src="/placeholder.svg?height=500&width=500"
+                    src="/CarbonStreaming.jpeg"
                   />
                 </div>
               </div>

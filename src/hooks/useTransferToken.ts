@@ -1,3 +1,5 @@
+import { userHasWallet } from "@civic/auth-web3";
+import { useUser } from "@civic/auth-web3/react";
 import { BN, web3 } from "@coral-xyz/anchor";
 import {
   createTransferCheckedInstruction,
@@ -7,21 +9,25 @@ import {
   getTransferHook,
   TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 
 const useTransferToken = (mint: string, to: string, amount: number) => {
-  const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const queryClient = useQueryClient();
+  const userContext = useUser();
+
   return useMutation({
     mutationKey: ["transferToken", mint, to, amount],
     mutationFn: async () => {
-      if (!publicKey) {
+      if (!userHasWallet(userContext)) {
         toast.error("Wallet not connected");
         return;
       }
+      console.log("Minting RWA token", userContext.solana.wallet);
+
+      const publicKey = userContext.solana.wallet.publicKey!;
 
       const mintPublicKey = new web3.PublicKey(mint);
       const toPublicKey = new web3.PublicKey(to);
@@ -84,7 +90,10 @@ const useTransferToken = (mint: string, to: string, amount: number) => {
             transaction.recentBlockhash = recentBlockhash.blockhash;
             transaction.feePayer = publicKey;
 
-            const signature = await sendTransaction(transaction, connection);
+            const signature = await userContext.solana.wallet.sendTransaction(
+              transaction,
+              connection
+            );
             console.log("Signature", signature);
             const tx = await connection.confirmTransaction({
               signature,
